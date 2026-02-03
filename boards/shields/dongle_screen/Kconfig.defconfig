@@ -173,7 +173,8 @@ config DONGLE_SCREEN_AMBIENT_LIGHT
     bool "Enable automatic brightness via ambient light sensor"
     default n
     select SENSOR
-    select APDS9960
+    select VCNL4040
+    select VCNL4040_ENABLE_ALS
     help
       If enabled, the ambient light sensor will be used to automatically adjust screen brightness.
 
