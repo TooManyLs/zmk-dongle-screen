@@ -524,30 +524,24 @@ ZMK_SUBSCRIPTION(screen_idle, zmk_layer_state_changed);
 
 #if IS_ENABLED(CONFIG_DONGLE_SCREEN_AMBIENT_LIGHT)
 
-#define AMBIENT_LIGHT_SENSOR_NODE DT_INST(0, avago_apds9960)
+#define AMBIENT_LIGHT_SENSOR_NODE DT_INST(0, vishay_vcnl4040)
 static const struct device *ambient_sensor = DEVICE_DT_GET(AMBIENT_LIGHT_SENSOR_NODE);
-
-// Passe diese Werte nach deinen Messungen an!
-const int32_t min_sensor = CONFIG_DONGLE_SCREEN_AMBIENT_LIGHT_MIN_RAW_VALUE;
-const int32_t max_sensor = CONFIG_DONGLE_SCREEN_AMBIENT_LIGHT_MAX_RAW_VALUE;
 
 static uint8_t ambient_to_brightness(int32_t sensor_value)
 {
-    if (sensor_value < min_sensor)
-    {
-        LOG_INF("Ambient sensor reading (%d) below DONGLE_SCREEN_AMBIENT_LIGHT_MIN_RAW_VALUE: (%d) Will set the sensor reading to the minimum configured.", sensor_value, CONFIG_DONGLE_SCREEN_AMBIENT_LIGHT_MIN_RAW_VALUE);
-        sensor_value = min_sensor;
-    }
+    // Clamp realistic brightness range
+    if (sensor_value < 1) sensor_value = 1;
+    if (sensor_value > 8000) sensor_value = 8000;
 
-    if (sensor_value > max_sensor)
-    {
-        LOG_INF("Ambient sensor reading (%d) above DONGLE_SCREEN_AMBIENT_LIGHT_MAX_RAW_VALUE: (%d) Will set the sensor reading to the maximum configured.", sensor_value, CONFIG_DONGLE_SCREEN_AMBIENT_LIGHT_MAX_RAW_VALUE);
-        sensor_value = max_sensor;
-    }
+    const float min_lux_val = 5.0f;
+    const float max_lux_val = 4000.0f;
+    const uint8_t min_b = min_brightness;
+    const uint8_t max_b = max_brightness;
 
-    uint8_t brightness = min_brightness +
-                         ((sensor_value - min_sensor) * (max_brightness - min_brightness)) /
-                             (max_sensor - min_sensor);
+    float normalized = logf((float)sensor_value / min_lux_val) / logf(max_lux_val / min_lux_val);
+    normalized = fmaxf(0.0f, fminf(1.0f, normalized));
+
+    uint8_t brightness = min_b + (uint8_t)(normalized * (max_b - min_b + 0.5f));
     return clamp_brightness(brightness);
 }
 
@@ -584,7 +578,7 @@ static void ambient_light_thread(void)
                 {
                     struct brightness_result result = calculate_brightness_with_bounds(new_brightness, brightness_modifier, true);
 
-                    LOG_DBG("Ambient light: %d (raw) -> brightness %d, effective (incl. modifier) %d",
+                    LOG_DBG("Ambient light: %d (lux) -> brightness %d, effective (incl. modifier) %d",
                             val.val1, result.adjusted_brightness, result.effective_brightness);
 
                     if (result.hit_min_limit)
