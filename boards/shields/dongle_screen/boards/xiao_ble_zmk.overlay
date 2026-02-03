@@ -93,10 +93,10 @@ disp_spi: &spi3 {
 &i2c1 {
    status = "okay";
 
-   apds9960: apds9960@39 {
-       compatible = "avago,apds9960";
+   vcnl4040: vcnl4040@60 {
+       compatible = "vishay,vcnl4040";
        status = "okay";
-       reg = <0x39>;
+       reg = <0x60>;
        int-gpios = <&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
    };
 };
