@@ -1,11 +1,13 @@
 #include "layer_roller.h"
 
 #include <ctype.h>
+#include <string.h>
 #include <zmk/display.h>
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
 
+#include <lvgl.h>  // Critical: Explicit LVGL include for roller APIs
 #include <fonts.h>
 
 #include <zephyr/logging/log.h>
@@ -75,8 +77,12 @@ static void layer_roller_set_sel(lv_obj_t *roller, struct layer_roller_state sta
     lv_roller_set_selected(roller, display_pos, LV_ANIM_ON);
 }
 
-static void layer_roller_update_cb(struct zmk_widget_layer_roller *widget, struct layer_roller_state state) {
-    layer_roller_set_sel(widget->obj, state);
+// CRITICAL FIX: Use 4-argument macro signature (pre-widget-refactor ZMK)
+static void layer_roller_update_cb(struct layer_roller_state state) {
+    struct zmk_widget_layer_roller *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        layer_roller_set_sel(widget->obj, state);
+    }
 }
 
 static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh) {
@@ -86,12 +92,10 @@ static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh) {
     };
 }
 
-ZMK_DISPLAY_WIDGET_LISTENER(widget_layer_roller, struct zmk_widget_layer_roller, struct layer_roller_state,
-                            layer_roller_update_cb, layer_roller_get_state)
+// 4-ARGUMENT MACRO (compatible with current ZMK main branch as of early 2026)
+ZMK_DISPLAY_WIDGET_LISTENER(widget_layer_roller, struct layer_roller_state, layer_roller_update_cb,
+                            layer_roller_get_state)
 ZMK_SUBSCRIPTION(widget_layer_roller, zmk_layer_state_changed);
-
-// Removed deprecated mask_event_cb - LVGL 8 uses different rendering architecture
-// Visual fade effects should be implemented via gradient overlays if needed
 
 static void init_layer_arrays(void) {
     static bool initialized = false;
@@ -161,8 +165,8 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     lv_style_set_pad_all(&style, 0);
     lv_obj_add_style(widget->obj, &style, 0);
 
-    // Set the background opacity, text size, and color for the selected layer.
-    lv_obj_set_style_text_align(widget->obj, LV_TEXT_ALIGN_LEFT, LV_PART_SELECTED); // LV_ALIGN_LEFT_MID → LV_TEXT_ALIGN_LEFT
+    // LVGL 8: Use text alignment constants (not position alignments)
+    lv_obj_set_style_text_align(widget->obj, LV_TEXT_ALIGN_LEFT, LV_PART_SELECTED);
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_TRANSP, LV_PART_SELECTED);
     lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_SELECTED);   
     lv_obj_set_style_text_color(widget->obj, lv_color_white(), LV_PART_SELECTED);
@@ -196,15 +200,15 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
 
         // Safely copy layer name (with optional uppercase conversion)
         size_t name_len = strlen(layer_name);
-        size_t to_copy = MIN(name_len, remaining - 1); // -1 for null terminator
+        size_t to_copy = (name_len < remaining - 1) ? name_len : remaining - 1;
         
-        #if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
+#if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
         for (size_t j = 0; j < to_copy; j++) {
             ptr[j] = toupper((unsigned char)layer_name[j]);
         }
-        #else
+#else
         memcpy(ptr, layer_name, to_copy);
-        #endif
+#endif
         
         ptr[to_copy] = '\0';
         ptr += to_copy;
