@@ -1,6 +1,5 @@
 #include "layer_roller.h"
 #include <lvgl.h>  // Base include if not already present
-#include <lvgl/src/draw/lv_draw_mask.h>  // For lv_draw_mask_fade_param_t and init functions
 
 #include <ctype.h>
 #include <zmk/display.h>
