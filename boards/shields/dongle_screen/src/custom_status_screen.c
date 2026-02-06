@@ -73,7 +73,7 @@ lv_obj_t *zmk_display_status_screen()
     // zmk_widget_layer_status_init(&layer_status_widget, screen);
     // lv_obj_align(zmk_widget_layer_status_obj(&layer_status_widget), LV_ALIGN_LEFT_MID, 20, 0);
     zmk_widget_layer_roller_init(&layer_roller_widget, screen);
-    lv_obj_set_size(zmk_widget_layer_roller_obj(&layer_roller_widget), 224, 116);
+    lv_obj_set_size(zmk_widget_layer_roller_obj(&layer_roller_widget), 224, 104);
     lv_obj_align(zmk_widget_layer_roller_obj(&layer_roller_widget), LV_ALIGN_LEFT_MID, 10, 0);
 #endif
 
