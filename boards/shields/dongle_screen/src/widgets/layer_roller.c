@@ -78,7 +78,16 @@ static void layer_roller_set_sel(lv_obj_t *roller, struct layer_roller_state sta
 
     /* Apply color and select */
     lv_obj_set_style_text_color(roller, color, LV_PART_SELECTED);
+
+    /* LVGL selection API: try v8 name first, fallback */
+#if defined(lv_roller_set_selected_index)
+    lv_roller_set_selected_index(roller, display_pos, LV_ANIM_ON);
+#elif defined(lv_roller_set_selected)
     lv_roller_set_selected(roller, display_pos, LV_ANIM_ON);
+#else
+    /* Last-resort assume old API */
+    lv_roller_set_selected(roller, display_pos, LV_ANIM_ON);
+#endif
 }
 
 static void layer_roller_update_cb(struct layer_roller_state state)
@@ -98,7 +107,7 @@ static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh)
     return (struct layer_roller_state){ .index = idx };
 }
 
-/* Register widget listener (macro used in modern ZMK) */
+/* Register widget listener */
 ZMK_DISPLAY_WIDGET_LISTENER(widget_layer_roller, struct layer_roller_state, layer_roller_update_cb,
                             layer_roller_get_state)
 ZMK_SUBSCRIPTION(widget_layer_roller, zmk_layer_state_changed);
@@ -127,6 +136,25 @@ static void mask_event_cb(lv_event_t *e)
         rect_area.y1 = roller_coords.y1;
         rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h) / 2;
 
+        /* LVGL v8 software fade mask types */
+#if defined(lv_draw_sw_mask_fade_param_t) && defined(lv_draw_sw_mask_fade_init)
+        lv_draw_sw_mask_fade_param_t *fade_mask_top = lv_mem_alloc(sizeof(lv_draw_sw_mask_fade_param_t));
+        if (fade_mask_top) {
+            lv_draw_sw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
+            mask_top_id = lv_draw_sw_mask_add(fade_mask_top, NULL);
+        }
+
+        rect_area.y1 = rect_area.y2 + font_h + line_space - 1;
+        rect_area.y2 = roller_coords.y2;
+
+        lv_draw_sw_mask_fade_param_t *fade_mask_bottom = lv_mem_alloc(sizeof(lv_draw_sw_mask_fade_param_t));
+        if (fade_mask_bottom) {
+            lv_draw_sw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
+            mask_bottom_id = lv_draw_sw_mask_add(fade_mask_bottom, NULL);
+        }
+#else
+        /* Fallback to older API if present */
+#if defined(lv_draw_mask_fade_param_t)
         lv_draw_mask_fade_param_t *fade_mask_top = lv_mem_alloc(sizeof(lv_draw_mask_fade_param_t));
         if (fade_mask_top) {
             lv_draw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
@@ -141,7 +169,27 @@ static void mask_event_cb(lv_event_t *e)
             lv_draw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
             mask_bottom_id = lv_draw_mask_add(fade_mask_bottom, NULL);
         }
+#endif
+#endif
     } else if (code == LV_EVENT_DRAW_POST_END) {
+#if defined(lv_draw_sw_mask_remove_id) && defined(lv_draw_sw_mask_free_param)
+        if (mask_top_id >= 0) {
+            lv_draw_sw_mask_fade_param_t *p = lv_draw_sw_mask_remove_id(mask_top_id);
+            if (p) {
+                lv_draw_sw_mask_free_param(p);
+                lv_mem_free(p);
+            }
+            mask_top_id = -1;
+        }
+        if (mask_bottom_id >= 0) {
+            lv_draw_sw_mask_fade_param_t *p = lv_draw_sw_mask_remove_id(mask_bottom_id);
+            if (p) {
+                lv_draw_sw_mask_free_param(p);
+                lv_mem_free(p);
+            }
+            mask_bottom_id = -1;
+        }
+#elif defined(lv_draw_mask_fade_param_t)
         if (mask_top_id >= 0) {
             lv_draw_mask_fade_param_t *p = lv_draw_mask_remove_id(mask_top_id);
             if (p) {
@@ -158,6 +206,7 @@ static void mask_event_cb(lv_event_t *e)
             }
             mask_bottom_id = -1;
         }
+#endif
     }
 }
 
@@ -250,7 +299,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     lv_obj_set_style_text_color(widget->obj, lv_color_white(), LV_PART_SELECTED);
 
     /* Main part styles */
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_32, LV_PART_MAIN);
+    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_MAIN);
     lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY, 4), LV_PART_MAIN);
 
     /* Build layer names safely */
