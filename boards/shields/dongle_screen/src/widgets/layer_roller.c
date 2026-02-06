@@ -6,6 +6,9 @@
 #include <zmk/keymap.h>
 #include <fonts.h>
 #include "lvgl.h"
+#include <lvgl/widgets/lv_roller.h>
+#include <lvgl/widgets/lv_canvas.h>
+#include <lvgl/draw/lv_draw_rect.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 static char layer_names_buffer[256] = {0}; // Buffer for concatenated layer names
@@ -184,7 +187,6 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY,4), LV_PART_MAIN);
 
     // Create and apply fade mask
-    static lv_draw_buf_t mask_buf;
     LV_DRAW_BUF_DEFINE_STATIC(mask_buf, 240, 80, LV_COLOR_FORMAT_L8);
     LV_DRAW_BUF_INIT_STATIC(mask_buf);
     generate_mask(&mask_buf);
