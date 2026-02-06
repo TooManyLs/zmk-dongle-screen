@@ -2,11 +2,12 @@
 Copyright (c) 2020 The ZMK Contributors
 SPDX-License-Identifier: MIT
 */
+#include "layer_roller.h"
+
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/display.h>
-#include <layer_roller.h>
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
@@ -70,7 +71,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     widget->obj = lv_roller_create(parent);
     
     // Configure roller appearance
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, 0);
     lv_obj_set_style_text_color(widget->obj, lv_color_white(), 0);
     lv_obj_set_style_bg_color(widget->obj, lv_color_hex(0x333333), LV_PART_SELECTED);
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_50, LV_PART_SELECTED);
