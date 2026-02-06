@@ -24,11 +24,6 @@ static struct zmk_widget_layer_roller layer_roller_widget;
 static struct zmk_widget_dongle_battery_status dongle_battery_status_widget;
 #endif
 
-#if CONFIG_DONGLE_SCREEN_WPM_ACTIVE
-#include "widgets/wpm_status.h"
-static struct zmk_widget_wpm_status wpm_status_widget;
-#endif
-
 #if CONFIG_DONGLE_SCREEN_MODIFIER_ACTIVE
 #include "widgets/mod_status.h"
 static struct zmk_widget_mod_status mod_widget;
@@ -48,7 +43,6 @@ lv_obj_t *zmk_display_status_screen()
     lv_obj_set_style_bg_opa(screen, 255, LV_PART_MAIN);
 
     lv_style_init(&global_style);
-    // lv_style_set_text_font(&global_style, &lv_font_unscii_8); // ToDo: Font is not recognized
     lv_style_set_text_color(&global_style, lv_color_white());
     lv_style_set_text_letter_space(&global_style, 1);
     lv_style_set_text_line_space(&global_style, 1);
@@ -62,11 +56,6 @@ lv_obj_t *zmk_display_status_screen()
 #if CONFIG_DONGLE_SCREEN_BATTERY_ACTIVE
     zmk_widget_dongle_battery_status_init(&dongle_battery_status_widget, screen);
     lv_obj_align(zmk_widget_dongle_battery_status_obj(&dongle_battery_status_widget), LV_ALIGN_BOTTOM_MID, 0, 0);
-#endif
-
-#if CONFIG_DONGLE_SCREEN_WPM_ACTIVE
-    zmk_widget_wpm_status_init(&wpm_status_widget, screen);
-    lv_obj_align(zmk_widget_wpm_status_obj(&wpm_status_widget), LV_ALIGN_RIGHT_MID, 0, 0);
 #endif
 
 #if CONFIG_DONGLE_SCREEN_LAYER_ACTIVE

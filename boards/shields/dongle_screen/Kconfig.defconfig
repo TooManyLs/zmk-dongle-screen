@@ -17,7 +17,6 @@ config ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
     select LV_USE_ANIMATION
     select LV_USE_LINE 
     select LV_FONT_UNSCII_8
-    select ZMK_WPM
     imply ZMK_HID_INDICATORS
 
 config ZMK_DONGLE_DISPLAY_DONGLE_BATTERY
@@ -93,7 +92,7 @@ config DONGLE_SCREEN_IDLE_TIMEOUT_S
 
 config DONGLE_SCREEN_MAX_BRIGHTNESS
     int "Maximum screen brightness (1-100)"
-    default 80
+    default 100
     range 1 100
     help
         This is the brightness which is used when the dongle is powered on. This is also the maximum brightness used by the dimmer.
@@ -144,12 +143,6 @@ config DONGLE_SCREEN_BRIGHTNESS_STEP
     help
       How much brightness steps (range MIN_BRIGHTNESS to MAX_BRIGHTNESS) should be applied per keystroke
 
-config DONGLE_SCREEN_WPM_ACTIVE
-    bool "WPM Widget active"
-    default n
-    help
-      If the WPM Widget should be active or not
-
 config DONGLE_SCREEN_MODIFIER_ACTIVE
     bool "Modifier Widget active"
     default y
@@ -195,26 +188,13 @@ config DONGLE_SCREEN_AMBIENT_LIGHT_EVALUATION_INTERVAL_MS
     help
       The interval how often the ambient light level should be evaluated.
 
-config DONGLE_SCREEN_AMBIENT_LIGHT_MIN_RAW_VALUE
-    int "The minimum raw value for until your ambient sensor repects readings."
-    default 0
-    range 0 1999
-    help
-      Depending on the position and if the sensor is behind transparent plastic or not the sensor readings can be vary. Behind plastic the default value is proven good. If your ambient light changes are not too reactive you might change this.
-
-config DONGLE_SCREEN_AMBIENT_LIGHT_MAX_RAW_VALUE
-    int "The maximum raw value for until your ambient sensor repects readings."
-    default 100
-    range 100 3000
-    help
-      Depending on the position and if the sensor is behind transparent plastic or not the sensor readings can be vary. Behind plastic the default value is proven good. If your ambient light changes are not too reactive you might change this.
-
 config DONGLE_SCREEN_BRIGHTNESS_MODIFIER
     int "The modifier to start the application with."
     default 0
     range -99 99
     help
       The modifier to start the dongle with. Useful if you found a modifier comfortable for you. Espacially for ambient light. Otherwise no need to change.
+
 config DONGLE_SCREEN_SYSTEM_ICON
     int "The icon to display when the 'LGUI'/'RGUI' is pressed. (0: macOS, 1: Linux, 2: Windows)"
     default 0
