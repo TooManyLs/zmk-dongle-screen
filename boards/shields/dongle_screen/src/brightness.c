@@ -531,10 +531,10 @@ static uint8_t ambient_to_brightness(int32_t sensor_value)
 {
     // Clamp realistic brightness range
     if (sensor_value < 1) sensor_value = 1;
-    if (sensor_value > 4000) sensor_value = 4000;
+    if (sensor_value > 2000) sensor_value = 2000;
 
-    const float min_lux_val = 15.0f;
-    const float max_lux_val = 2000.0f;
+    const float min_lux_val = 10.0f;
+    const float max_lux_val = 1000.0f;
     const uint8_t min_b = min_brightness;
     const uint8_t max_b = max_brightness;
 
