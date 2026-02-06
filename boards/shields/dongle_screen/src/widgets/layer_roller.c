@@ -1,146 +1,200 @@
 #include "layer_roller.h"
+
 #include <ctype.h>
+#include <string.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
+
 #include <zmk/display.h>
-#include <zmk/events/layer_state_changed.h>
 #include <zmk/event_manager.h>
+#include <zmk/events/layer_state_changed.h>
 #include <zmk/keymap.h>
+
 #include <fonts.h>
-#include "lvgl.h"
-#include <widgets/roller/lv_roller.h>
-#include <widgets/canvas/lv_canvas.h>
-#include <draw/lv_draw_rect.h>
+
 #include <zephyr/logging/log.h>
-LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
-static char layer_names_buffer[256] = {0}; // Buffer for concatenated layer names
-static int layer_select_id[ZMK_KEYMAP_LAYERS_LEN] = {0};   // Maps layer index to display position
-static int layer_display_order[ZMK_KEYMAP_LAYERS_LEN] = {0}; // Maps display position to layer index
+LOG_MODULE_REGISTER(zmk_layer_roller, CONFIG_ZMK_LOG_LEVEL);
+
+/* Config */
+#define MAX_LAYER_NAME_BUFFER 256
+
+static char layer_names_buffer[MAX_LAYER_NAME_BUFFER];
+static int layer_select_id[ZMK_KEYMAP_LAYERS_LEN];
+static int layer_display_order[ZMK_KEYMAP_LAYERS_LEN];
 static int total_layers = 0;
+
+/* widget list */
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
+
 struct layer_roller_state {
     uint8_t index;
 };
 
-static void generate_mask(lv_draw_buf_t * mask) {
-    /*Create a "8 bit alpha" canvas and clear it*/
-    lv_obj_t * canvas = lv_canvas_create(lv_screen_active());
-    lv_canvas_set_draw_buf(canvas, mask);
-    lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_TRANSP);
-
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
-
-    /*Draw a label to the canvas. The result "image" will be used as mask*/
-    lv_draw_rect_dsc_t rect_dsc;
-    lv_draw_rect_dsc_init(&rect_dsc);
-    rect_dsc.bg_grad.dir = LV_GRAD_DIR_VER;
-    rect_dsc.bg_grad.stops[0].color = lv_color_black();
-    rect_dsc.bg_grad.stops[1].color = lv_color_white();
-    rect_dsc.bg_grad.stops[0].opa = LV_OPA_COVER;
-    rect_dsc.bg_grad.stops[1].opa = LV_OPA_COVER;
-    lv_area_t a = {0, 0, mask->header.w - 1, mask->header.h / 2 - 5};
-    lv_draw_rect(&layer, &rect_dsc, &a);
-
-    a.y1 = mask->header.h / 2 + 5;
-    a.y2 = mask->header.h - 1;
-    rect_dsc.bg_grad.stops[0].color = lv_color_white();
-    rect_dsc.bg_grad.stops[1].color = lv_color_black();
-    lv_draw_rect(&layer, &rect_dsc, &a);
-
-    lv_canvas_finish_layer(canvas, &layer);
-
-    /*Delete the canvas. We don't need it anymore*/
-    lv_obj_delete(canvas);
-}
-
-static void layer_roller_set_sel(lv_obj_t *roller, struct layer_roller_state state) {
-    if (state.index >= ZMK_KEYMAP_LAYERS_LEN || layer_select_id[state.index] == -1) {
+static void layer_roller_set_sel(lv_obj_t *roller, struct layer_roller_state state)
+{
+    if (state.index >= ZMK_KEYMAP_LAYERS_LEN) {
         return;
     }
-    int display_pos = layer_select_id[state.index];
-    // Set color based on position and layer
+
+    int sel_layer = state.index;
+    if (layer_select_id[sel_layer] == -1) {
+        return;
+    }
+
+    int display_pos = layer_select_id[sel_layer];
+
+    /* choose color based on relative position to center */
     lv_color_t color;
-    // Get relative position from center
     int center_pos = total_layers / 2;
     int rel_pos = display_pos - center_pos;
-    // Position-based coloring using predefined colors
+
     if (display_pos == center_pos) {
-        // Center (usually layer 0) - White
         color = lv_color_white();
     } else {
-        // Colors for positions relative to center
         static const lv_palette_t before_center[] = {
-            LV_PALETTE_DEEP_ORANGE,  // -3
-            LV_PALETTE_ORANGE,       // -2
-            LV_PALETTE_AMBER,        // -1
+            LV_PALETTE_DEEP_ORANGE,
+            LV_PALETTE_ORANGE,
+            LV_PALETTE_AMBER,
         };
         static const lv_palette_t after_center[] = {
-            LV_PALETTE_LIGHT_GREEN,  // +1
-            LV_PALETTE_GREEN,        // +2
-            LV_PALETTE_TEAL,         // +3
+            LV_PALETTE_LIGHT_GREEN,
+            LV_PALETTE_GREEN,
+            LV_PALETTE_TEAL,
         };
-       
+
         if (rel_pos < 0) {
-            // Before center (negative positions)
             int idx = (-rel_pos) - 1;
-            if (idx < sizeof(before_center)/sizeof(before_center[0])) {
-                color = lv_palette_main(before_center[idx]);
-            } else {
-                color = lv_palette_main(before_center[sizeof(before_center)/sizeof(before_center[0]) - 1]);
-            }
+            size_t max = ARRAY_SIZE(before_center);
+            if (idx >= (int)max) idx = (int)max - 1;
+            color = lv_palette_main(before_center[idx]);
         } else {
-            // After center (positive positions)
             int idx = rel_pos - 1;
-            if (idx < sizeof(after_center)/sizeof(after_center[0])) {
-                color = lv_palette_main(after_center[idx]);
-            } else {
-                color = lv_palette_main(after_center[sizeof(after_center)/sizeof(after_center[0]) - 1]);
-            }
+            size_t max = ARRAY_SIZE(after_center);
+            if (idx >= (int)max) idx = (int)max - 1;
+            color = lv_palette_main(after_center[idx]);
         }
     }
+
+    /* Apply color and select */
     lv_obj_set_style_text_color(roller, color, LV_PART_SELECTED);
     lv_roller_set_selected(roller, display_pos, LV_ANIM_ON);
 }
-static void layer_roller_update_cb(struct layer_roller_state state) {
+
+static void layer_roller_update_cb(struct layer_roller_state state)
+{
     struct zmk_widget_layer_roller *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-        layer_roller_set_sel(widget->obj, state);
+        if (widget && widget->obj) {
+            layer_roller_set_sel(widget->obj, state);
+        }
     }
 }
-static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh) {
-    uint8_t index = zmk_keymap_highest_layer_active();
-    return (struct layer_roller_state){
-        .index = index,
-    };
+
+static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh)
+{
+    ARG_UNUSED(eh);
+    uint8_t idx = zmk_keymap_highest_layer_active();
+    return (struct layer_roller_state){ .index = idx };
 }
+
+/* Register widget listener (macro used in modern ZMK) */
 ZMK_DISPLAY_WIDGET_LISTENER(widget_layer_roller, struct layer_roller_state, layer_roller_update_cb,
                             layer_roller_get_state)
 ZMK_SUBSCRIPTION(widget_layer_roller, zmk_layer_state_changed);
-static void init_layer_arrays(void) {
+
+static void mask_event_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *obj = lv_event_get_target(e);
+
+    static int16_t mask_top_id = -1;
+    static int16_t mask_bottom_id = -1;
+
+    if (code == LV_EVENT_COVER_CHECK) {
+        lv_event_set_cover_res(e, LV_COVER_RES_MASKED);
+    } else if (code == LV_EVENT_DRAW_MAIN_BEGIN) {
+        const lv_font_t *font = lv_obj_get_style_text_font(obj, LV_PART_SELECTED);
+        lv_coord_t line_space = lv_obj_get_style_text_line_space(obj, LV_PART_MAIN);
+        lv_coord_t font_h = lv_font_get_line_height(font);
+
+        lv_area_t roller_coords;
+        lv_obj_get_coords(obj, &roller_coords);
+
+        lv_area_t rect_area;
+        rect_area.x1 = roller_coords.x1;
+        rect_area.x2 = roller_coords.x2;
+        rect_area.y1 = roller_coords.y1;
+        rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h) / 2;
+
+        lv_draw_mask_fade_param_t *fade_mask_top = lv_mem_alloc(sizeof(lv_draw_mask_fade_param_t));
+        if (fade_mask_top) {
+            lv_draw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
+            mask_top_id = lv_draw_mask_add(fade_mask_top, NULL);
+        }
+
+        rect_area.y1 = rect_area.y2 + font_h + line_space - 1;
+        rect_area.y2 = roller_coords.y2;
+
+        lv_draw_mask_fade_param_t *fade_mask_bottom = lv_mem_alloc(sizeof(lv_draw_mask_fade_param_t));
+        if (fade_mask_bottom) {
+            lv_draw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
+            mask_bottom_id = lv_draw_mask_add(fade_mask_bottom, NULL);
+        }
+    } else if (code == LV_EVENT_DRAW_POST_END) {
+        if (mask_top_id >= 0) {
+            lv_draw_mask_fade_param_t *p = lv_draw_mask_remove_id(mask_top_id);
+            if (p) {
+                lv_draw_mask_free_param(p);
+                lv_mem_free(p);
+            }
+            mask_top_id = -1;
+        }
+        if (mask_bottom_id >= 0) {
+            lv_draw_mask_fade_param_t *p = lv_draw_mask_remove_id(mask_bottom_id);
+            if (p) {
+                lv_draw_mask_free_param(p);
+                lv_mem_free(p);
+            }
+            mask_bottom_id = -1;
+        }
+    }
+}
+
+static void init_layer_arrays(void)
+{
     static bool initialized = false;
     if (initialized) {
-        return; // Already initialized
+        return;
     }
     initialized = true;
-    // Count available layers
+
+    /* Count available layers */
     total_layers = 0;
     for (int i = 0; i < ZMK_KEYMAP_LAYERS_LEN; i++) {
-        if (zmk_keymap_layer_name(i) != NULL) {
+        const char *name = zmk_keymap_layer_name(i);
+        if (name != NULL) {
             total_layers++;
         }
     }
-    // Initialize arrays with invalid values
+
+    if (total_layers <= 0) {
+        total_layers = 1;
+    }
+
+    /* initialize maps */
     for (int i = 0; i < ZMK_KEYMAP_LAYERS_LEN; i++) {
         layer_select_id[i] = -1;
         layer_display_order[i] = -1;
     }
-    // Initialize arrays with layer 0 in the center
+
     int center_pos = total_layers / 2;
-   
-    // Place layer 0 in the center
+
+    /* Put layer 0 in center */
     layer_display_order[center_pos] = 0;
     layer_select_id[0] = center_pos;
-   
-    // Fill positions before center with odd numbers
+
+    /* Fill before center with odd numbers (1,3,5...) */
     int odd = 1;
     for (int i = center_pos - 1; i >= 0; i--) {
         if (odd < total_layers) {
@@ -149,8 +203,8 @@ static void init_layer_arrays(void) {
             odd += 2;
         }
     }
-   
-    // Fill positions after center with even numbers
+
+    /* Fill after center with even numbers (2,4,6...) */
     int even = 2;
     for (int i = center_pos + 1; i < total_layers; i++) {
         if (even < total_layers) {
@@ -159,80 +213,108 @@ static void init_layer_arrays(void) {
             even += 2;
         }
     }
-    LOG_DBG("Layer display order:");
+
+    LOG_DBG("Layer display order (total %d):", total_layers);
     for (int i = 0; i < total_layers; i++) {
         LOG_DBG("Position %d: Layer %d", i, layer_display_order[i]);
     }
 }
-int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_t *parent) {
+
+int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_t *parent)
+{
     init_layer_arrays();
+
+    if (!widget) {
+        return -EINVAL;
+    }
+
     widget->obj = lv_roller_create(parent);
+    if (!widget->obj) {
+        return -ENOMEM;
+    }
+
     lv_obj_set_size(widget->obj, 240, 80);
-    static lv_style_t style;
-    lv_style_init(&style);
-    lv_style_set_bg_color(&style, lv_color_black());
-    lv_style_set_text_color(&style, lv_color_white());
-    lv_style_set_text_line_space(&style, 0);
-    //lv_style_set_border_width(&style, 1);
-    //lv_style_set_border_color(&style, lv_palette_main(LV_PALETTE_LIGHT_BLUE));
-    lv_style_set_pad_all(&style, 0);
-    lv_obj_add_style(widget->obj, &style, 0);
-    // Set the background opacity, text size, and color for the selected layer.
-    lv_obj_set_style_text_align(widget->obj, LV_ALIGN_LEFT_MID, LV_PART_SELECTED);
+
+    static lv_style_t style_main;
+    lv_style_init(&style_main);
+    lv_style_set_bg_color(&style_main, lv_color_black());
+    lv_style_set_text_color(&style_main, lv_color_white());
+    lv_style_set_text_line_space(&style_main, 0);
+    lv_style_set_pad_all(&style_main, 0);
+    lv_obj_add_style(widget->obj, &style_main, 0);
+
+    /* Selected part styles */
+    lv_obj_set_style_text_align(widget->obj, LV_TEXT_ALIGN_LEFT, LV_PART_SELECTED);
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_TRANSP, LV_PART_SELECTED);
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_SELECTED);  
+    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_SELECTED);
     lv_obj_set_style_text_color(widget->obj, lv_color_white(), LV_PART_SELECTED);
-    // Set the text size and color of the non-selected layers.
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY,4), LV_PART_MAIN);
 
-    // Create and apply fade mask
-    LV_DRAW_BUF_DEFINE_STATIC(mask_buf, 240, 80, LV_COLOR_FORMAT_L8);
-    LV_DRAW_BUF_INIT_STATIC(mask_buf);
-    generate_mask(&mask_buf);
-    lv_obj_set_style_bitmap_mask_src(widget->obj, &mask_buf, 0);
+    /* Main part styles */
+    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_32, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY, 4), LV_PART_MAIN);
 
+    /* Build layer names safely */
     layer_names_buffer[0] = '\0';
     char *ptr = layer_names_buffer;
+    size_t rem = sizeof(layer_names_buffer);
+
     for (int i = 0; i < total_layers; i++) {
-        const char *layer_name = zmk_keymap_layer_name(layer_display_order[i]);
-        if (layer_name) {
-            // For each layer name after the first layer name and a newline.
-            if (i > 0) {
-                strcat(ptr, "\n");
-                ptr += strlen(ptr);
-            }
-            if (layer_name && *layer_name) { //is both valid and points to a non-empty string
-                // If the layer names should be all caps, modify them to be so.
-                #if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
-                while (*layer_name) {
-                    *ptr = toupper((unsigned char)*layer_name);
-                    ptr++;
-                    layer_name++;
+        int layer_idx = layer_display_order[i];
+        const char *layer_name = zmk_keymap_layer_name(layer_idx);
+        if (!layer_name) {
+            /* fallback to numeric label */
+            char tmp[4];
+            int n = snprintf(tmp, sizeof(tmp), "%d", layer_idx);
+            if (n > 0 && (size_t)n < rem) {
+                if (i > 0) {
+                    strncat(ptr, "\n", rem - strlen(ptr) - 1);
                 }
-                *ptr = '\0';
-                // Otherwise, just add the layer name directly to the buffer.
-                #else
-                strcat(ptr, layer_name);
-                ptr += strlen(layer_name);
-            #endif
-            // If a layer doesn't have a name, just use the layer number.  Supports up to 99 layers.
-            } else {
-                char index_str[3]; // For up to 99
-                snprintf(index_str, sizeof(index_str), "%d", i);
-                strcat(ptr, index_str);
-                ptr += strlen(index_str);
+                strncat(ptr, tmp, rem - strlen(ptr) - 1);
+                rem = sizeof(layer_names_buffer) - strlen(ptr);
+            }
+            continue;
+        }
+
+        if (i > 0) {
+            if (rem > 1) {
+                strncat(ptr, "\n", rem - strlen(ptr) - 1);
+                rem = sizeof(layer_names_buffer) - strlen(ptr);
             }
         }
+
+#if IS_ENABLED(CONFIG_LAYER_ROLLER_ALL_CAPS)
+        /* copy uppercase */
+        for (const char *c = layer_name; *c && rem > 1; c++) {
+            *ptr++ = (char)toupper((unsigned char)*c);
+            rem--;
+        }
+        if (rem > 0) {
+            *ptr = '\0';
+            rem = sizeof(layer_names_buffer) - strlen(layer_names_buffer);
+        }
+#else
+        strncat(ptr, layer_name, rem - strlen(ptr) - 1);
+        rem = sizeof(layer_names_buffer) - strlen(layer_names_buffer);
+#endif
     }
+
     lv_roller_set_options(widget->obj, layer_names_buffer, LV_ROLLER_MODE_NORMAL);
     lv_roller_set_visible_row_count(widget->obj, 3);
-   
+
+    /* optionally enable mask event if desired */
+    lv_obj_add_event_cb(widget->obj, mask_event_cb, LV_EVENT_ALL, NULL);
+
+    lv_obj_set_style_anim_time(widget->obj, 400, 0);
+
     sys_slist_append(&widgets, &widget->node);
-   
+
+    /* register listener so ZMK updates this widget automatically */
     widget_layer_roller_init();
+
     return 0;
 }
-lv_obj_t *zmk_widget_layer_roller_obj(struct zmk_widget_layer_roller *widget) {
-    return widget->obj;
+
+lv_obj_t *zmk_widget_layer_roller_obj(struct zmk_widget_layer_roller *widget)
+{
+    return widget ? widget->obj : NULL;
 }
