@@ -235,6 +235,8 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     init_layer_arrays();
     if (!widget) return -EINVAL;
 
+    LOG_INF("layer_roller_init called, parent=%p", parent);
+
     /* Create roller: try common v8 factory name(s) */
 #if defined(lv_roller_create)
     widget->obj = lv_roller_create(parent);
@@ -244,10 +246,25 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     widget->obj = NULL;
 #endif
 
-    if (!widget->obj) return -ENOMEM;
+    if (!widget->obj) {
+        LOG_ERR("failed to create roller object");
+        return -ENOMEM;
+    }
+    LOG_INF("roller obj %p", widget->obj);
 
-    lv_obj_set_size(widget->obj, 240, 80);
+    /* Quick visual checks */
+    lv_obj_set_size(widget->obj, 120, 40);
+    lv_obj_center(widget->obj);
+    lv_obj_set_style_bg_color(widget->obj, lv_palette_main(LV_PALETTE_BLUE), 0);
 
+    /* Add a test label so we can see text independently of roller/options */
+    lv_obj_t *lbl = lv_label_create(widget->obj);
+    if (lbl) {
+        lv_label_set_text(lbl, "TEST");
+        lv_obj_center(lbl);
+    }
+
+    /* Minimal styles */
     static lv_style_t style_main;
     lv_style_init(&style_main);
     lv_style_set_bg_color(&style_main, lv_color_black());
@@ -263,12 +280,14 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     lv_obj_set_style_text_align(widget->obj, LV_ALIGN_LEFT_MID, LV_PART_SELECTED);
 #endif
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_TRANSP, LV_PART_SELECTED);
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_SELECTED);
+    /* Use default font to avoid missing custom font issues */
+    lv_obj_set_style_text_font(widget->obj, LV_FONT_DEFAULT, LV_PART_SELECTED);
     lv_obj_set_style_text_color(widget->obj, lv_color_white(), LV_PART_SELECTED);
 
-    lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_40, LV_PART_MAIN);
+    lv_obj_set_style_text_font(widget->obj, LV_FONT_DEFAULT, LV_PART_MAIN);
     lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY, 4), LV_PART_MAIN);
 
+    /* Build layer names into buffer (same logic as before) */
     layer_names_buffer[0] = '\0';
     char *ptr = layer_names_buffer;
     size_t rem = sizeof(layer_names_buffer);
@@ -277,7 +296,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
         int layer_idx = layer_display_order[i];
         const char *layer_name = zmk_keymap_layer_name(layer_idx);
         if (!layer_name) {
-            char tmp[4];
+            char tmp[16];
             int n = snprintf(tmp, sizeof(tmp), "%d", layer_idx);
             if (n > 0 && (size_t)n < rem) {
                 if (i > 0) strncat(ptr, "\n", rem - strlen(ptr) - 1);
@@ -301,22 +320,24 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
 #endif
     }
 
-    /* Set options: LVGL v8 uses lv_roller_set_options; some builds may define LV_ROLLER_MODE_* constants */
+    LOG_INF("total_layers=%d layer_names_buffer=\"%s\"", total_layers, layer_names_buffer);
+
+    /* Set options if roller API available */
 #if defined(lv_roller_set_options) && defined(LV_ROLLER_MODE_NORMAL)
     lv_roller_set_options(widget->obj, layer_names_buffer, LV_ROLLER_MODE_NORMAL);
 #elif defined(lv_roller_set_options)
-    /* If LV_ROLLER_MODE_NORMAL isn't defined, pass options string only (older overloads allowed) */
     lv_roller_set_options(widget->obj, layer_names_buffer, 0);
 #else
-    /* No roller options API detected: as fallback, set text on object via generic API (best-effort) */
-    (void)layer_names_buffer;
+    LOG_DBG("lv_roller_set_options not available; skipping options set");
 #endif
 
 #if defined(lv_roller_set_visible_row_count)
     lv_roller_set_visible_row_count(widget->obj, 3);
 #endif
 
-    lv_obj_add_event_cb(widget->obj, mask_event_cb, LV_EVENT_ALL, NULL);
+    /* Temporarily DO NOT add the mask event callback so masks can't hide content */
+    /* lv_obj_add_event_cb(widget->obj, mask_event_cb, LV_EVENT_ALL, NULL); */
+
     lv_obj_set_style_anim_time(widget->obj, 400, 0);
 
     sys_slist_append(&widgets, &widget->node);
