@@ -70,10 +70,10 @@ lv_obj_t *zmk_display_status_screen()
 #endif
 
 #if CONFIG_DONGLE_SCREEN_LAYER_ACTIVE
-    // zmk_widget_layer_status_init(&layer_status_widget, screen);
-    // lv_obj_align(zmk_widget_layer_status_obj(&layer_status_widget), LV_ALIGN_LEFT_MID, 20, 0);
-    zmk_widget_layer_roller_init(&layer_roller_widget, screen);
-    lv_obj_align(zmk_widget_layer_roller_obj(&layer_roller_widget), LV_ALIGN_LEFT_MID, 20, 0);
+    zmk_widget_layer_status_init(&layer_status_widget, screen);
+    lv_obj_align(zmk_widget_layer_status_obj(&layer_status_widget), LV_ALIGN_LEFT_MID, 20, 0);
+    // zmk_widget_layer_roller_init(&layer_roller_widget, screen);
+    // lv_obj_align(zmk_widget_layer_roller_obj(&layer_roller_widget), LV_ALIGN_LEFT_MID, 20, 0);
 #endif
 
 #if CONFIG_DONGLE_SCREEN_MODIFIER_ACTIVE
