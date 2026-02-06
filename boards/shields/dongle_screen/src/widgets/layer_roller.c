@@ -16,6 +16,39 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 struct layer_roller_state {
     uint8_t index;
 };
+
+static void generate_mask(lv_draw_buf_t * mask) {
+    /*Create a "8 bit alpha" canvas and clear it*/
+    lv_obj_t * canvas = lv_canvas_create(lv_screen_active());
+    lv_canvas_set_draw_buf(canvas, mask);
+    lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_TRANSP);
+
+    lv_layer_t layer;
+    lv_canvas_init_layer(canvas, &layer);
+
+    /*Draw a label to the canvas. The result "image" will be used as mask*/
+    lv_draw_rect_dsc_t rect_dsc;
+    lv_draw_rect_dsc_init(&rect_dsc);
+    rect_dsc.bg_grad.dir = LV_GRAD_DIR_VER;
+    rect_dsc.bg_grad.stops[0].color = lv_color_black();
+    rect_dsc.bg_grad.stops[1].color = lv_color_white();
+    rect_dsc.bg_grad.stops[0].opa = LV_OPA_COVER;
+    rect_dsc.bg_grad.stops[1].opa = LV_OPA_COVER;
+    lv_area_t a = {0, 0, mask->header.w - 1, mask->header.h / 2 - 5};
+    lv_draw_rect(&layer, &rect_dsc, &a);
+
+    a.y1 = mask->header.h / 2 + 5;
+    a.y2 = mask->header.h - 1;
+    rect_dsc.bg_grad.stops[0].color = lv_color_white();
+    rect_dsc.bg_grad.stops[1].color = lv_color_black();
+    lv_draw_rect(&layer, &rect_dsc, &a);
+
+    lv_canvas_finish_layer(canvas, &layer);
+
+    /*Delete the canvas. We don't need it anymore*/
+    lv_obj_delete(canvas);
+}
+
 static void layer_roller_set_sel(lv_obj_t *roller, struct layer_roller_state state) {
     if (state.index >= ZMK_KEYMAP_LAYERS_LEN || layer_select_id[state.index] == -1) {
         return;
@@ -79,48 +112,6 @@ static struct layer_roller_state layer_roller_get_state(const zmk_event_t *eh) {
 ZMK_DISPLAY_WIDGET_LISTENER(widget_layer_roller, struct layer_roller_state, layer_roller_update_cb,
                             layer_roller_get_state)
 ZMK_SUBSCRIPTION(widget_layer_roller, zmk_layer_state_changed);
-static void mask_event_cb(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = lv_event_get_target(e);
-    static int16_t mask_top_id = -1;
-    static int16_t mask_bottom_id = -1;
-    if(code == LV_EVENT_COVER_CHECK) {
-        lv_event_set_cover_res(e, LV_COVER_RES_MASKED);
-    }
-    else if(code == LV_EVENT_DRAW_MAIN_BEGIN) {
-        /* add mask */
-        const lv_font_t * font = lv_obj_get_style_text_font(obj, LV_PART_SELECTED);
-        lv_coord_t line_space = lv_obj_get_style_text_line_space(obj, LV_PART_MAIN);
-        lv_coord_t font_h = lv_font_get_line_height(font);
-        lv_area_t roller_coords;
-        lv_obj_get_coords(obj, &roller_coords);
-        lv_area_t rect_area;
-        rect_area.x1 = roller_coords.x1;
-        rect_area.x2 = roller_coords.x2;
-        rect_area.y1 = roller_coords.y1;
-        // rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h - line_space) / 2;
-        rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h) / 2;
-        lv_draw_sw_mask_fade_param_t * fade_mask_top = lv_mem_alloc(sizeof(lv_draw_sw_mask_fade_param_t));
-        lv_draw_sw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
-        mask_top_id = lv_draw_sw_mask_add(fade_mask_top, NULL);
-        rect_area.y1 = rect_area.y2 + font_h + line_space - 1;
-        rect_area.y2 = roller_coords.y2;
-        lv_draw_sw_mask_fade_param_t * fade_mask_bottom = lv_mem_alloc(sizeof(lv_draw_sw_mask_fade_param_t));
-        lv_draw_sw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
-        mask_bottom_id = lv_draw_sw_mask_add(fade_mask_bottom, NULL);
-    }
-    else if(code == LV_EVENT_DRAW_POST_END) {
-        lv_draw_sw_mask_fade_param_t * fade_mask_top = lv_draw_sw_mask_remove_id(mask_top_id);
-        lv_draw_sw_mask_fade_param_t * fade_mask_bottom = lv_draw_sw_mask_remove_id(mask_bottom_id);
-        lv_draw_sw_mask_free_param(fade_mask_top);
-        lv_draw_sw_mask_free_param(fade_mask_bottom);
-        lv_mem_free(fade_mask_top);
-        lv_mem_free(fade_mask_bottom);
-        mask_top_id = -1;
-        mask_bottom_id = -1;
-    }
-}
 static void init_layer_arrays(void) {
     static bool initialized = false;
     if (initialized) {
@@ -191,6 +182,14 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     // Set the text size and color of the non-selected layers.
     lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_32, LV_PART_MAIN);
     lv_obj_set_style_text_color(widget->obj, lv_palette_darken(LV_PALETTE_GREY,4), LV_PART_MAIN);
+
+    // Create and apply fade mask
+    static lv_draw_buf_t mask_buf;
+    LV_DRAW_BUF_DEFINE_STATIC(mask_buf, 240, 80, LV_COLOR_FORMAT_L8);
+    LV_DRAW_BUF_INIT_STATIC(mask_buf);
+    generate_mask(&mask_buf);
+    lv_obj_set_style_bitmap_mask_src(widget->obj, &mask_buf, 0);
+
     layer_names_buffer[0] = '\0';
     char *ptr = layer_names_buffer;
     for (int i = 0; i < total_layers; i++) {
@@ -217,7 +216,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
             #endif
             // If a layer doesn't have a name, just use the layer number.  Supports up to 99 layers.
             } else {
-                char index_str[2];
+                char index_str[3]; // For up to 99
                 snprintf(index_str, sizeof(index_str), "%d", i);
                 strcat(ptr, index_str);
                 ptr += strlen(index_str);
@@ -226,10 +225,6 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     }
     lv_roller_set_options(widget->obj, layer_names_buffer, LV_ROLLER_MODE_NORMAL);
     lv_roller_set_visible_row_count(widget->obj, 3);
-   
-    //lv_obj_add_event_cb(widget->obj, mask_event_cb, LV_EVENT_ALL, NULL);
-   
-    lv_obj_set_style_anim_time(widget->obj, 400, 0);
    
     sys_slist_append(&widgets, &widget->node);
    
