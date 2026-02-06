@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/display.h>
-#include <zmk/display/widgets/layer_roller.h>
+#include <layer_roller.h>
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
