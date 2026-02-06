@@ -62,9 +62,6 @@ endchoice
 config LV_FONT_MONTSERRAT_40
     default y
 
-config LV_FONT_MONTSERRAT_32
-    default y
-
 config PWM
     default y
 
@@ -159,10 +156,6 @@ config DONGLE_SCREEN_LAYER_ACTIVE
     default y
     help
       If the Layer Widget should be active or not
-
-config LAYER_ROLLER_ALL_CAPS
-    bool "Display layer names in all caps"
-    default n
 
 config DONGLE_SCREEN_OUTPUT_ACTIVE
     bool "Output Widget active"
