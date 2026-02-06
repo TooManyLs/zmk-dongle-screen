@@ -5,8 +5,8 @@
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
 #include <fonts.h>
-#include "draw/sw/lv_draw_sw_mask.h"
-#include "widgets/roller/lv_roller.h"
+#include "draw/lv_draw_mask.h"
+#include "widgets/lv_roller.h"
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 static char layer_names_buffer[256] = {0}; // Buffer for concatenated layer names
@@ -102,20 +102,20 @@ static void mask_event_cb(lv_event_t * e)
         rect_area.y1 = roller_coords.y1;
         // rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h - line_space) / 2;
         rect_area.y2 = roller_coords.y1 + (lv_obj_get_height(obj) - font_h) / 2;
-        lv_draw_sw_mask_fade_param_t * fade_mask_top = lv_mem_buf_get(sizeof(lv_draw_sw_mask_fade_param_t));
-        lv_draw_sw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
-        mask_top_id = lv_draw_sw_mask_add(fade_mask_top, NULL);
+        lv_draw_mask_fade_param_t * fade_mask_top = lv_mem_buf_get(sizeof(lv_draw_mask_fade_param_t));
+        lv_draw_mask_fade_init(fade_mask_top, &rect_area, LV_OPA_TRANSP, rect_area.y1, LV_OPA_COVER, rect_area.y2);
+        mask_top_id = lv_draw_mask_add(fade_mask_top, NULL);
         rect_area.y1 = rect_area.y2 + font_h + line_space - 1;
         rect_area.y2 = roller_coords.y2;
-        lv_draw_sw_mask_fade_param_t * fade_mask_bottom = lv_mem_buf_get(sizeof(lv_draw_sw_mask_fade_param_t));
-        lv_draw_sw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
-        mask_bottom_id = lv_draw_sw_mask_add(fade_mask_bottom, NULL);
+        lv_draw_mask_fade_param_t * fade_mask_bottom = lv_mem_buf_get(sizeof(lv_draw_mask_fade_param_t));
+        lv_draw_mask_fade_init(fade_mask_bottom, &rect_area, LV_OPA_COVER, rect_area.y1, LV_OPA_TRANSP, rect_area.y2);
+        mask_bottom_id = lv_draw_mask_add(fade_mask_bottom, NULL);
     }
     else if(code == LV_EVENT_DRAW_POST_END) {
-        lv_draw_sw_mask_fade_param_t * fade_mask_top = lv_draw_sw_mask_remove_id(mask_top_id);
-        lv_draw_sw_mask_fade_param_t * fade_mask_bottom = lv_draw_sw_mask_remove_id(mask_bottom_id);
-        lv_draw_sw_mask_free_param(fade_mask_top);
-        lv_draw_sw_mask_free_param(fade_mask_bottom);
+        lv_draw_mask_fade_param_t * fade_mask_top = lv_draw_mask_remove_id(mask_top_id);
+        lv_draw_mask_fade_param_t * fade_mask_bottom = lv_draw_mask_remove_id(mask_bottom_id);
+        lv_draw_mask_free_param(fade_mask_top);
+        lv_draw_mask_free_param(fade_mask_bottom);
         lv_mem_buf_release(fade_mask_top);
         lv_mem_buf_release(fade_mask_bottom);
         mask_top_id = -1;
