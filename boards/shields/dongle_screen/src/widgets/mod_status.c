@@ -9,30 +9,28 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 static void update_mod_status(struct zmk_widget_mod_status *widget)
 {
     uint8_t mods = zmk_hid_get_keyboard_report()->body.modifiers;
-    char text[256] = "";
-    int idx = 0;
+    char text[64] = "";
 
-    // Ctrl symbol (always shown)
-    const char *ctrl_color = (mods & (MOD_LCTL | MOD_RCTL)) ? "#00FFFF" : "#090909";
-    idx += snprintf(&text[idx], sizeof(text) - idx, "[color=%s]󰘴[/color]", ctrl_color);
-    
-    // Shift symbol (always shown)
-    const char *shift_color = (mods & (MOD_LSFT | MOD_RSFT)) ? "#00FFFF" : "#090909";
-    idx += snprintf(&text[idx], sizeof(text) - idx, " [color=%s]󰘶[/color]", shift_color);
-    
-    // Alt symbol (always shown)
-    const char *alt_color = (mods & (MOD_LALT | MOD_RALT)) ? "#00FFFF" : "#090909";
-    idx += snprintf(&text[idx], sizeof(text) - idx, " [color=%s]󰘵[/color]", alt_color);
-    
-    // GUI symbol (always shown, config-dependent icon)
-    const char *gui_color = (mods & (MOD_LGUI | MOD_RGUI)) ? "#00FFFF" : "#090909";
+    // Determine colors for each modifier (6-digit hex without # prefix)
+    const char *ctrl_color  = (mods & (MOD_LCTL | MOD_RCTL)) ? "00ffff" : "090909";
+    const char *shift_color = (mods & (MOD_LSFT | MOD_RSFT)) ? "00ffff" : "090909";
+    const char *alt_color   = (mods & (MOD_LALT | MOD_RALT)) ? "00ffff" : "090909";
+    const char *gui_color   = (mods & (MOD_LGUI | MOD_RGUI)) ? "00ffff" : "090909";
+
+    // Select GUI symbol based on config
 #if CONFIG_DONGLE_SCREEN_SYSTEM_ICON == 1
-    idx += snprintf(&text[idx], sizeof(text) - idx, " [color=%s]󰌽[/color]", gui_color);
+    const char *gui_sym = "󰌽";
 #elif CONFIG_DONGLE_SCREEN_SYSTEM_ICON == 2
-    idx += snprintf(&text[idx], sizeof(text) - idx, " [color=%s][/color]", gui_color);
+    const char *gui_sym = "";
 #else
-    idx += snprintf(&text[idx], sizeof(text) - idx, " [color=%s]󰘳[/color]", gui_color);
+    const char *gui_sym = "󰘳";
 #endif
+
+    // Build rich text string with ALL symbols always visible
+    // LVGL syntax: "#rrggbb text#" - space after color code is required
+    snprintf(text, sizeof(text),
+        "#%s 󰘴##%s 󰘶##%s 󰘵##%s %s#",
+        ctrl_color, shift_color, alt_color, gui_color, gui_sym);
 
     lv_label_set_text(widget->label, text);
 }
@@ -53,11 +51,12 @@ int zmk_widget_mod_status_init(struct zmk_widget_mod_status *widget, lv_obj_t *p
     widget->label = lv_label_create(widget->obj);
     lv_obj_align(widget->label, LV_ALIGN_CENTER, 0, 0);
     
-    // CRITICAL: Set default text color to dim (#090909) so spaces blend with background
-    lv_obj_set_style_text_color(widget->label, lv_color_hex(0x090909), 0);
+    // CRITICAL: Do NOT set a default text color style - rich text controls all coloring
+    // lv_obj_set_style_text_color(widget->label, ..., 0); // <-- REMOVE THIS IF PRESENT
+    
     lv_obj_set_style_text_font(widget->label, &NerdFonts_Regular_40, 0);
     
-    // Initialize with all symbols dimmed (no placeholder "-")
+    // Initialize with current state (no placeholder "-")
     update_mod_status(widget);
     
     k_timer_init(&mod_status_timer, mod_status_timer_cb, NULL);
