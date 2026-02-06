@@ -5,7 +5,6 @@
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
 #include <fonts.h>
-#include "misc/lv_mem.h"
 #include "draw/sw/lv_draw_sw_mask.h"
 #include "widgets/roller/lv_roller.h"
 #include <zephyr/logging/log.h>
