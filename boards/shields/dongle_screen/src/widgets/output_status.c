@@ -87,7 +87,6 @@ static void set_status_symbol(struct zmk_widget_output_status *widget, struct ou
     char ble_text[12];
 
     snprintf(ble_text, sizeof(ble_text), "%d", state.active_profile_index + 1);
-    // lv_obj_set_style_text_align(widget->ble_label, LV_TEXT_ALIGN_RIGHT, 0);
     lv_label_set_text(widget->ble_label, ble_text);
 }
 
@@ -106,11 +105,13 @@ ZMK_SUBSCRIPTION(widget_output_status, zmk_endpoint_changed);
 ZMK_SUBSCRIPTION(widget_output_status, zmk_ble_active_profile_changed);
 ZMK_SUBSCRIPTION(widget_output_status, zmk_usb_conn_state_changed);
 
-// output_status.c
 int zmk_widget_output_status_init(struct zmk_widget_output_status *widget, lv_obj_t *parent)
 {
     widget->obj = lv_obj_create(parent);
     lv_obj_set_size(widget->obj, 240, 77);
+
+    lv_obj_set_style_bg_opa(widget->obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
 
     widget->transport_label = lv_label_create(widget->obj);
     lv_obj_align(widget->transport_label, LV_ALIGN_TOP_RIGHT, -10, 10);

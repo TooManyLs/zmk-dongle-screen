@@ -246,6 +246,9 @@ int zmk_widget_dongle_battery_status_init(struct zmk_widget_dongle_battery_statu
 
     lv_obj_set_size(widget->obj, 240, 40);
 
+    lv_obj_set_style_bg_opa(widget->obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
+
     for (int i = 0; i < ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT + SOURCE_OFFSET; i++)
     {
         lv_obj_t *image_canvas = lv_canvas_create(widget->obj);
