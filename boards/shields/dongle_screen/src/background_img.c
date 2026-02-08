@@ -1,7 +1,6 @@
 #include <lvgl.h>
 
 const lv_img_dsc_t background_img = {
-  .header.always_zero = 0,
   .header.w = 240,
   .header.h = 135,
   .data_size = 240 * 135 * LV_COLOR_DEPTH / 8,

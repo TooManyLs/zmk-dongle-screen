@@ -1,4 +1,4 @@
-#include "background_widget.h"
+#include "background.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
