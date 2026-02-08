@@ -45,7 +45,7 @@ ZMK_SUBSCRIPTION(widget_layer_roller, zmk_layer_state_changed);
 int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_t *parent) {
     widget->obj = lv_roller_create(parent);
 
-    lv_obj_set_style_bg_border_width(widget->obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
 
     layer_names_buffer[0] = '\0';
     char *ptr = layer_names_buffer;
