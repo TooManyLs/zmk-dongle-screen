@@ -16,19 +16,19 @@ static void update_mod_status(struct zmk_widget_mod_status *widget)
     uint8_t mods = zmk_hid_get_keyboard_report()->body.modifiers;
 
     lv_obj_set_style_text_color(ctrl_label,
-        (mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x090909),
+        (mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(shift_label,
-        (mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x090909),
+        (mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(alt_label,
-        (mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x090909),
+        (mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(gui_label,
-        (mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x090909),
+        (mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 }
 
@@ -53,17 +53,17 @@ int zmk_widget_mod_status_init(struct zmk_widget_mod_status *widget, lv_obj_t *p
     ctrl_label = lv_label_create(widget->obj);
     lv_label_set_text(ctrl_label, "󰘴");
     lv_obj_set_style_text_font(ctrl_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(ctrl_label, lv_color_hex(0x090909), LV_PART_MAIN);
+    lv_obj_set_style_text_color(ctrl_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
     shift_label = lv_label_create(widget->obj);
     lv_label_set_text(shift_label, "󰘶");
     lv_obj_set_style_text_font(shift_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(shift_label, lv_color_hex(0x090909), LV_PART_MAIN);
+    lv_obj_set_style_text_color(shift_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
     alt_label = lv_label_create(widget->obj);
     lv_label_set_text(alt_label, "󰘵");
     lv_obj_set_style_text_font(alt_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(alt_label, lv_color_hex(0x090909), LV_PART_MAIN);
+    lv_obj_set_style_text_color(alt_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
 #if CONFIG_DONGLE_SCREEN_SYSTEM_ICON == 1
     lv_label_set_text(gui_label = lv_label_create(widget->obj), "󰌽");
@@ -73,7 +73,7 @@ int zmk_widget_mod_status_init(struct zmk_widget_mod_status *widget, lv_obj_t *p
     lv_label_set_text(gui_label = lv_label_create(widget->obj), "󰘳");
 #endif
     lv_obj_set_style_text_font(gui_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(gui_label, lv_color_hex(0x090909), LV_PART_MAIN);
+    lv_obj_set_style_text_color(gui_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
     update_mod_status(widget);
 
