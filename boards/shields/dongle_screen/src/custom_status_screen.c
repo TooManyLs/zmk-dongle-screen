@@ -5,6 +5,10 @@
  */
 
 #include "custom_status_screen.h"
+#include "widgets/background.h"
+
+extern const lv_img_dsc_t background_img;
+
 
 #if CONFIG_DONGLE_SCREEN_OUTPUT_ACTIVE
 #include "widgets/output_status.h"
@@ -39,8 +43,8 @@ lv_obj_t *zmk_display_status_screen()
     lv_obj_t *screen;
 
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, lv_color_hex(0x000000), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(screen, 255, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(screen, 0, LV_PART_MAIN);
+    background_widget_init(screen, &background_img);
 
     lv_style_init(&global_style);
     lv_style_set_text_color(&global_style, lv_color_white());
