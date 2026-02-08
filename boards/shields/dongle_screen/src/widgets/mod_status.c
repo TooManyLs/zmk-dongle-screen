@@ -16,19 +16,19 @@ static void update_mod_status(struct zmk_widget_mod_status *widget)
     uint8_t mods = zmk_hid_get_keyboard_report()->body.modifiers;
 
     lv_obj_set_style_text_color(ctrl_label,
-        (mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
+        (mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(shift_label,
-        (mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
+        (mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(alt_label,
-        (mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
+        (mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 
     lv_obj_set_style_text_color(gui_label,
-        (mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00FFFF) : lv_color_hex(0x909090),
+        (mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
         LV_PART_MAIN);
 }
 
