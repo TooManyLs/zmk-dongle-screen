@@ -13,8 +13,11 @@
 struct zmk_widget_output_status
 {
     lv_obj_t *obj;
-    lv_obj_t *transport_label;
-    lv_obj_t *ble_label;
+    lv_obj_t *usb_icon;
+    lv_obj_t *ble_icon;
+    lv_obj_t *profile_label;
+    lv_obj_t *usb_marker;
+    lv_obj_t *ble_marker;
     sys_snode_t node;
 };
 

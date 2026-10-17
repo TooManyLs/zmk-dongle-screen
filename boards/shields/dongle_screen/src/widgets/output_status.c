@@ -18,7 +18,19 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/ble.h>
 #include <zmk/endpoints.h>
 
+#include <fonts.h>
+
 #include "output_status.h"
+
+#define OUTPUT_ICON_USB "\U000F0553"
+#define OUTPUT_ICON_BLE "\uF293"
+
+#define OUTPUT_RIGHT_MARGIN 10
+#define OUTPUT_PROFILE_WIDTH 14
+#define OUTPUT_PROFILE_GAP 3
+#define OUTPUT_ICON_RIGHT_X (-(OUTPUT_RIGHT_MARGIN + OUTPUT_PROFILE_WIDTH + OUTPUT_PROFILE_GAP))
+#define OUTPUT_ROW_USB_Y 8
+#define OUTPUT_ROW_BLE_Y 30
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
@@ -45,49 +57,41 @@ static struct output_status_state get_state(const zmk_event_t *_eh)
 
 static void set_status_symbol(struct zmk_widget_output_status *widget, struct output_status_state state)
 {
-    const char *ble_color = "ffffff";
-    const char *usb_color = "ffffff";
-    char transport_text[50] = {};
-    if (state.usb_is_hid_ready == 0)
-    {
-        usb_color = "ff0000";
-    }
-    else
-    {
-        usb_color = "ffffff";
-    }
+    lv_color_t usb_color = state.usb_is_hid_ready ? lv_color_hex(0xFFFFFF) : lv_color_hex(0xFF0000);
+    lv_color_t ble_color;
 
     if (state.active_profile_connected == 1)
     {
-        ble_color = "00ff00";
+        ble_color = lv_color_hex(0x00FF00);
     }
     else if (state.active_profile_bonded == 1)
     {
-        ble_color = "0000ff";
+        ble_color = lv_color_hex(0x0000FF);
     }
     else
     {
-        ble_color = "ffffff";
+        ble_color = lv_color_hex(0xFFFFFF);
     }
+
+    lv_obj_set_style_text_color(widget->usb_icon, usb_color, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->ble_icon, ble_color, LV_PART_MAIN);
+
+    lv_obj_add_flag(widget->usb_marker, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(widget->ble_marker, LV_OBJ_FLAG_HIDDEN);
 
     switch (state.selected_endpoint.transport)
     {
     case ZMK_TRANSPORT_USB:
-        snprintf(transport_text, sizeof(transport_text), "> #%s USB#\n#%s BLE#", usb_color, ble_color);
+        lv_obj_clear_flag(widget->usb_marker, LV_OBJ_FLAG_HIDDEN);
         break;
     case ZMK_TRANSPORT_BLE:
-        snprintf(transport_text, sizeof(transport_text), "#%s USB#\n> #%s BLE#", usb_color, ble_color);
+        lv_obj_clear_flag(widget->ble_marker, LV_OBJ_FLAG_HIDDEN);
+        break;
+    default:
         break;
     }
 
-    lv_label_set_recolor(widget->transport_label, true);
-    lv_obj_set_style_text_align(widget->transport_label, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_label_set_text(widget->transport_label, transport_text);
-
-    char ble_text[12];
-
-    snprintf(ble_text, sizeof(ble_text), "%d", state.active_profile_index + 1);
-    lv_label_set_text(widget->ble_label, ble_text);
+    lv_label_set_text_fmt(widget->profile_label, "%d", state.active_profile_index + 1);
 }
 
 static void output_status_update_cb(struct output_status_state state)
@@ -105,19 +109,45 @@ ZMK_SUBSCRIPTION(widget_output_status, zmk_endpoint_changed);
 ZMK_SUBSCRIPTION(widget_output_status, zmk_ble_active_profile_changed);
 ZMK_SUBSCRIPTION(widget_output_status, zmk_usb_conn_state_changed);
 
+static lv_obj_t *create_selection_marker(lv_obj_t *parent, lv_obj_t *anchor)
+{
+    lv_obj_t *marker = lv_label_create(parent);
+
+    lv_label_set_text(marker, ">");
+    lv_obj_align_to(marker, anchor, LV_ALIGN_OUT_LEFT_MID, -2, 0);
+    lv_obj_add_flag(marker, LV_OBJ_FLAG_HIDDEN);
+
+    return marker;
+}
+
 int zmk_widget_output_status_init(struct zmk_widget_output_status *widget, lv_obj_t *parent)
 {
     widget->obj = lv_obj_create(parent);
-    lv_obj_set_size(widget->obj, 240, 77);
+    lv_obj_set_size(widget->obj, lv_obj_get_width(parent), 77);
 
     lv_obj_set_style_bg_opa(widget->obj, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(widget->obj, 0, LV_PART_MAIN);
 
-    widget->transport_label = lv_label_create(widget->obj);
-    lv_obj_align(widget->transport_label, LV_ALIGN_TOP_RIGHT, -10, 10);
+    // USB icon
+    widget->usb_icon = lv_label_create(widget->obj);
+    lv_label_set_text(widget->usb_icon, OUTPUT_ICON_USB);
+    lv_obj_set_style_text_font(widget->usb_icon, &NerdFonts_Regular_20, LV_PART_MAIN);
+    lv_obj_align(widget->usb_icon, LV_ALIGN_TOP_RIGHT, OUTPUT_ICON_RIGHT_X, OUTPUT_ROW_USB_Y);
 
-    widget->ble_label = lv_label_create(widget->obj);
-    lv_obj_align(widget->ble_label, LV_ALIGN_TOP_RIGHT, -10, 56);
+    // Bluetooth icon
+    widget->ble_icon = lv_label_create(widget->obj);
+    lv_label_set_text(widget->ble_icon, OUTPUT_ICON_BLE);
+    lv_obj_set_style_text_font(widget->ble_icon, &NerdFonts_Regular_20, LV_PART_MAIN);
+    lv_obj_align(widget->ble_icon, LV_ALIGN_TOP_RIGHT, OUTPUT_ICON_RIGHT_X, OUTPUT_ROW_BLE_Y);
+
+    widget->profile_label = lv_label_create(widget->obj);
+    lv_obj_set_width(widget->profile_label, OUTPUT_PROFILE_WIDTH);
+    lv_obj_set_style_text_align(widget->profile_label, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+    lv_obj_align_to(widget->profile_label, widget->ble_icon, LV_ALIGN_OUT_RIGHT_MID, 3, 0);
+
+    widget->usb_marker = create_selection_marker(widget->obj, widget->usb_icon);
+    widget->ble_marker = create_selection_marker(widget->obj, widget->ble_icon);
 
     sys_slist_append(&widgets, &widget->node);
 
