@@ -86,7 +86,7 @@ int zmk_widget_layer_roller_init(struct zmk_widget_layer_roller *widget, lv_obj_
     lv_obj_set_style_text_font(widget->obj, &lv_font_montserrat_34, LV_PART_MAIN);
     lv_obj_set_style_text_color(widget->obj, lv_color_hex(0xffffff), LV_PART_MAIN);
 
-    lv_obj_set_style_anim_time(widget->obj, 200, 0);
+    lv_obj_set_style_anim_time(widget->obj, 300, 0);
 
     sys_slist_append(&widgets, &widget->node);
 

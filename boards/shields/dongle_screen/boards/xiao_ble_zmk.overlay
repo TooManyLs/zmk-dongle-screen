@@ -64,7 +64,7 @@ disp_spi: &spi3 {
 
        st7789: st7789v@0 {
            compatible = "sitronix,st7789v";
-           mipi-max-frequency = <30000000>;
+           mipi-max-frequency = <40000000>;
            mipi-mode = "MIPI_DBI_MODE_SPI_4WIRE";
            reg = <0>;
            width = <240>;
