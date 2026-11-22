@@ -71,12 +71,12 @@ static uint8_t clamp_brightness(int8_t value)
 {
     if (value > max_brightness)
     {
-        LOG_WRN("CLAMPED: Screen brightness %d would be over %d", value, max_brightness);
+        LOG_DBG("CLAMPED: Screen brightness %d would be over %d", value, max_brightness);
         return max_brightness;
     }
     if (value < min_brightness)
     {
-        LOG_WRN("CLAMPED: Screen brightness %d would be under %d", value, min_brightness);
+        LOG_DBG("CLAMPED: Screen brightness %d would be under %d", value, min_brightness);
         return min_brightness;
     }
     return value;
