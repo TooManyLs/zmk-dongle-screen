@@ -1,44 +1,54 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zmk/hid.h>
+#include <zmk/display.h>
+#include <zmk/event_manager.h>
+#include <zmk/events/keycode_state_changed.h>
 #include <lvgl.h>
 #include "mod_status.h"
 #include <fonts.h>
+
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-static lv_obj_t *ctrl_label;
-static lv_obj_t *shift_label;
-static lv_obj_t *alt_label;
-static lv_obj_t *gui_label;
+struct mod_status_state {
+    uint8_t mods;
+};
 
-static void update_mod_status(struct zmk_widget_mod_status *widget)
+static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
+
+static void mod_status_update_cb(struct mod_status_state state)
 {
-    uint8_t mods = zmk_hid_get_keyboard_report()->body.modifiers;
+    struct zmk_widget_mod_status *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        lv_obj_set_style_text_color(widget->ctrl_label,
+            (state.mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
+            LV_PART_MAIN);
 
-    lv_obj_set_style_text_color(ctrl_label,
-        (mods & (MOD_LCTL | MOD_RCTL)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
-        LV_PART_MAIN);
+        lv_obj_set_style_text_color(widget->shift_label,
+            (state.mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
+            LV_PART_MAIN);
 
-    lv_obj_set_style_text_color(shift_label,
-        (mods & (MOD_LSFT | MOD_RSFT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
-        LV_PART_MAIN);
+        lv_obj_set_style_text_color(widget->alt_label,
+            (state.mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
+            LV_PART_MAIN);
 
-    lv_obj_set_style_text_color(alt_label,
-        (mods & (MOD_LALT | MOD_RALT)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
-        LV_PART_MAIN);
-
-    lv_obj_set_style_text_color(gui_label,
-        (mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
-        LV_PART_MAIN);
+        lv_obj_set_style_text_color(widget->gui_label,
+            (state.mods & (MOD_LGUI | MOD_RGUI)) ? lv_color_hex(0x00a8ff) : lv_color_hex(0x909090),
+            LV_PART_MAIN);
+    }
 }
 
-static void mod_status_timer_cb(struct k_timer *timer)
+static struct mod_status_state mod_status_get_state(const zmk_event_t *eh)
 {
-    struct zmk_widget_mod_status *widget = k_timer_user_data_get(timer);
-    update_mod_status(widget);
+    const struct zmk_hid_keyboard_report *report = zmk_hid_get_keyboard_report();
+    uint8_t mods = (report != NULL) ? report->body.modifiers : 0x00;
+    return (struct mod_status_state){ .mods = mods };
 }
 
-static struct k_timer mod_status_timer;
+ZMK_DISPLAY_WIDGET_LISTENER(widget_mod_status, struct mod_status_state,
+                            mod_status_update_cb, mod_status_get_state)
+
+ZMK_SUBSCRIPTION(widget_mod_status, zmk_keycode_state_changed);
 
 int zmk_widget_mod_status_init(struct zmk_widget_mod_status *widget, lv_obj_t *parent)
 {
@@ -50,36 +60,34 @@ int zmk_widget_mod_status_init(struct zmk_widget_mod_status *widget, lv_obj_t *p
     lv_obj_set_flex_align(widget->obj, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(widget->obj, 0, LV_PART_MAIN);
 
-    ctrl_label = lv_label_create(widget->obj);
-    lv_label_set_text(ctrl_label, "󰘴");
-    lv_obj_set_style_text_font(ctrl_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(ctrl_label, lv_color_hex(0x909090), LV_PART_MAIN);
+    widget->ctrl_label = lv_label_create(widget->obj);
+    lv_label_set_text(widget->ctrl_label, "󰘴");
+    lv_obj_set_style_text_font(widget->ctrl_label, &NerdFonts_Regular_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->ctrl_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
-    shift_label = lv_label_create(widget->obj);
-    lv_label_set_text(shift_label, "󰘶");
-    lv_obj_set_style_text_font(shift_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(shift_label, lv_color_hex(0x909090), LV_PART_MAIN);
+    widget->shift_label = lv_label_create(widget->obj);
+    lv_label_set_text(widget->shift_label, "󰘶");
+    lv_obj_set_style_text_font(widget->shift_label, &NerdFonts_Regular_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->shift_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
-    alt_label = lv_label_create(widget->obj);
-    lv_label_set_text(alt_label, "󰘵");
-    lv_obj_set_style_text_font(alt_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(alt_label, lv_color_hex(0x909090), LV_PART_MAIN);
+    widget->alt_label = lv_label_create(widget->obj);
+    lv_label_set_text(widget->alt_label, "󰘵");
+    lv_obj_set_style_text_font(widget->alt_label, &NerdFonts_Regular_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->alt_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
 #if CONFIG_DONGLE_SCREEN_SYSTEM_ICON == 1
-    lv_label_set_text(gui_label = lv_label_create(widget->obj), "󰌽");
+    lv_label_set_text(widget->gui_label = lv_label_create(widget->obj), "󰌽");
 #elif CONFIG_DONGLE_SCREEN_SYSTEM_ICON == 2
-    lv_label_set_text(gui_label = lv_label_create(widget->obj), "");
+    lv_label_set_text(widget->gui_label = lv_label_create(widget->obj), "");
 #else
-    lv_label_set_text(gui_label = lv_label_create(widget->obj), "󰘳");
+    lv_label_set_text(widget->gui_label = lv_label_create(widget->obj), "󰘳");
 #endif
-    lv_obj_set_style_text_font(gui_label, &NerdFonts_Regular_40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(gui_label, lv_color_hex(0x909090), LV_PART_MAIN);
+    lv_obj_set_style_text_font(widget->gui_label, &NerdFonts_Regular_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(widget->gui_label, lv_color_hex(0x909090), LV_PART_MAIN);
 
-    update_mod_status(widget);
+    sys_slist_append(&widgets, &widget->node);
 
-    k_timer_init(&mod_status_timer, mod_status_timer_cb, NULL);
-    k_timer_user_data_set(&mod_status_timer, widget);
-    k_timer_start(&mod_status_timer, K_MSEC(100), K_MSEC(100));
+    widget_mod_status_init();
 
     return 0;
 }
